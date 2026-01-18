@@ -8,6 +8,17 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Health Check
+app.get('/api/health', async (req, res) => {
+    try {
+        const db = await getDB();
+        await db.get('SELECT 1');
+        res.json({ status: 'UP', message: 'Backend and Database are connected', timestamp: new Date() });
+    } catch (e) {
+        res.status(500).json({ status: 'DOWN', error: e.message });
+    }
+});
+
 // Routes
 const academyRoutes = require('./routes/academies');
 const batchRoutes = require('./routes/batches');
@@ -32,6 +43,13 @@ const drillRoutes = require('./routes/drills');
 const equipmentRoutes = require('./routes/equipment');
 const tournamentRoutes = require('./routes/tournaments');
 const roleRoutes = require('./routes/roles');
+
+// Phase 3 Feature Routes
+const announcementRoutes = require('./routes/announcements');
+const mediaRoutes = require('./routes/media');
+const skillRoutes = require('./routes/skills');
+const academySettingsRoutes = require('./routes/academy-settings');
+const securityRoutes = require('./routes/security');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -67,6 +85,13 @@ app.use('/api/drills', authenticateToken, drillRoutes);
 app.use('/api/equipment', authenticateToken, equipmentRoutes);
 app.use('/api/tournaments', tournamentRoutes); // Mixed auth (viewing is public)
 app.use('/api/roles', authenticateToken, roleRoutes);
+
+// Phase 3 Feature Routes
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/skills', skillRoutes);
+app.use('/api/settings', academySettingsRoutes);
+app.use('/api/security', authenticateToken, securityRoutes);
 
 // Anything that doesn't match the above, send back index.html
 app.get('*', (req, res) => {

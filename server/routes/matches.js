@@ -5,15 +5,42 @@ const router = express.Router();
 
 // Create Match
 router.post('/', authenticateToken, async (req, res) => {
-    const { academy_id, team_a_name, team_b_name, venue, match_date } = req.body;
+    const { academy_id, team_a_name, team_b_name, venue, match_date, match_format } = req.body;
     try {
         const db = await getDB();
         const result = await db.run(
-            `INSERT INTO matches (academy_id, team_a_name, team_b_name, venue, match_date)
-             VALUES (?, ?, ?, ?, ?)`,
-            [academy_id, team_a_name, team_b_name, venue, match_date]
+            `INSERT INTO matches (academy_id, team_a_name, team_b_name, venue, match_date, match_format)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [academy_id, team_a_name, team_b_name, venue, match_date, match_format || 'T20']
         );
-        res.status(201).json({ id: result.lastID, message: 'Match scheduled' });
+        res.status(201).json({ id: result.lastID, message: 'Match scheduled', format: match_format || 'T20' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Register Match Scores (Quick Result)
+router.post('/:id/register-scores', authenticateToken, async (req, res) => {
+    const { team_a_score, team_a_wickets, team_a_overs, team_b_score, team_b_wickets, team_b_overs, result } = req.body;
+    try {
+        const db = await getDB();
+
+        // Update match with summary result
+        await db.run(
+            `UPDATE matches 
+             SET status = 'COMPLETED', 
+                 result = ?,
+                 team_a_score = ?,
+                 team_a_wickets = ?,
+                 team_a_overs = ?,
+                 team_b_score = ?,
+                 team_b_wickets = ?,
+                 team_b_overs = ?
+             WHERE id = ?`,
+            [result, team_a_score, team_a_wickets, team_a_overs, team_b_score, team_b_wickets, team_b_overs, req.params.id]
+        );
+
+        res.json({ message: 'Scores registered successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
