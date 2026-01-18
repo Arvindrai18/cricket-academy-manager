@@ -1,10 +1,12 @@
 const express = require('express');
 const { getDB } = require('../db');
+const { generateReceipt } = require('../services/pdf');
+const { sendReceiptEmail } = require('../services/email');
 const router = express.Router();
 
-// Record Payment
+// Record Payment (with receipt generation)
 router.post('/', async (req, res) => {
-    const { academy_id, student_id, amount, due_date, payment_date, payment_mode, status } = req.body;
+    const { academy_id, student_id, amount, due_date, payment_date, payment_mode, status, send_email } = req.body;
     try {
         const db = await getDB();
         const result = await db.run(
@@ -12,7 +14,42 @@ router.post('/', async (req, res) => {
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [academy_id, student_id, amount, due_date, payment_date, payment_mode, status || 'PENDING']
         );
-        res.status(201).json({ id: result.lastID, message: 'Payment recorded' });
+
+        const paymentId = result.lastID;
+
+        // If payment is completed, generate receipt
+        if (status === 'PAID' && payment_date) {
+            // Get payment details with student and academy info
+            const payment = await db.get(
+                `SELECT p.*, s.first_name, s.last_name, s.parent_phone, a.name as academy_name, a.phone as academy_phone
+                 FROM fee_payments p
+                 JOIN students s ON p.student_id = s.id
+                 JOIN academies a ON p.academy_id = a.id
+                 WHERE p.id = ?`,
+                [paymentId]
+            );
+
+            // Generate PDF receipt
+            const receiptPath = await generateReceipt(
+                payment,
+                { name: payment.academy_name, phone: payment.academy_phone },
+                { first_name: payment.first_name, last_name: payment.last_name }
+            );
+
+            // Update payment with receipt URL
+            await db.run(
+                'UPDATE fee_payments SET receipt_url = ? WHERE id = ?',
+                [receiptPath, paymentId]
+            );
+
+            // Send email if requested (requires parent email in students table)
+            if (send_email && payment.parent_phone) {
+                // In real scenario, you'd have parent email. For now using phone as placeholder
+                // await sendReceiptEmail(parentEmail, `${payment.first_name} ${payment.last_name}`, amount, payment_date, receiptPath);
+            }
+        }
+
+        res.status(201).json({ id: paymentId, message: 'Payment recorded' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

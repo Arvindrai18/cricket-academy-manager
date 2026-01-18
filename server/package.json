@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "init-db": "node scripts/init-db.js"
+    "init-db": "node scripts/init-db.js",
+    "migrate": "node scripts/migrate-db.js",
+    "migrate-phase2": "node scripts/migrate-phase2.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -16,6 +18,11 @@
     "jsonwebtoken": "^9.0.2",
     "razorpay": "^2.9.6",
     "sqlite": "^5.0.1",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "pdfkit": "^0.13.0",
+    "exceljs": "^4.3.0",
+    "nodemailer": "^6.9.7",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3"
   }
 }
